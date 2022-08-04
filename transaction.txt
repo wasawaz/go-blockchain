@@ -1,0 +1,8 @@
+roodic-3; // 3 shot of vodka
+roodic+3; // technically purchasing from his own bar
+roodic+700; // Reward for a week of work( 7x100 per day)
+roodic-2000;   // transfer to BabaYaga
+babayaga+2000; // pre-purchase with 100% bonus
+babayaga-1;
+roodic+1;
+roodic+100;    // 1 day of sun coming up
