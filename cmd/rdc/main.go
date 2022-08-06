@@ -7,13 +7,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var rdcCmd = &cobra.Command{
+	Use:   "rdc",
+	Short: "The Roodic Blockchain CLI",
+	Run: func(cmd *cobra.Command, args []string) {
+	},
+}
+
 func main() {
-	var rdcCmd = &cobra.Command{
-		Use:   "rdc",
-		Short: "The Roodic Blockchain CLI",
-		Run: func(cmd *cobra.Command, args []string) {
-		},
-	}
 
 	err := rdcCmd.Execute()
 	if err != nil {
