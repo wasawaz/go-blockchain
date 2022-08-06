@@ -18,7 +18,3 @@ var versionCmd = &cobra.Command{
 		fmt.Printf("Verison: %s.%s.%s-beta %s", Major, Minor, Fix, Verbal)
 	},
 }
-
-func init() {
-	rdcCmd.AddCommand(versionCmd)
-}
