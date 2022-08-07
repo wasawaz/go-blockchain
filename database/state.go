@@ -2,8 +2,10 @@ package database
 
 import (
 	"bufio"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -13,6 +15,7 @@ type State struct {
 	Balances  map[Account]uint
 	txMempool []Tx
 	dbFile    *os.File
+	snapshot  Snapshot
 }
 
 func NewStateFromDisk() (*State, error) {
@@ -39,7 +42,7 @@ func NewStateFromDisk() (*State, error) {
 		return nil, err
 	}
 	scanner := bufio.NewScanner(f)
-	state := &State{balances, make([]Tx, 0), f}
+	state := &State{balances, make([]Tx, 0), f, Snapshot{}}
 
 	for scanner.Scan() {
 		if err := scanner.Err(); err != nil {
@@ -52,6 +55,12 @@ func NewStateFromDisk() (*State, error) {
 			return nil, err
 		}
 	}
+
+	err = state.doSnapshot()
+	if err != nil {
+		return nil, err
+	}
+
 	return state, nil
 }
 
@@ -81,7 +90,7 @@ func (s *State) Add(tx Tx) error {
 }
 
 //Persisting the transactions to disk
-func (s *State) Persist() error {
+func (s *State) Persist() (Snapshot, error) {
 	// Make a copy of mempool because the s.txMempool will be modified
 	// in the loop below
 	mempool := make([]Tx, len(s.txMempool))
@@ -89,17 +98,45 @@ func (s *State) Persist() error {
 	for i := 0; i < len(mempool); i++ {
 		txJson, err := json.Marshal(mempool[i])
 		if err != nil {
-			return err
+			return Snapshot{}, err
 		}
+		fmt.Printf("Persisting new TX to disk:\n")
+		fmt.Printf("\t%s\n", txJson)
 		if _, err = s.dbFile.Write(append(txJson, '\n')); err != nil {
-			return err
+			return Snapshot{}, err
 		}
+		err = s.doSnapshot()
+		if err != nil {
+			return Snapshot{}, err
+		}
+		fmt.Printf("NewDB Snapshot: %x\n", s.snapshot)
 
 		s.txMempool = s.txMempool[1:]
 	}
-	return nil
+	return s.snapshot, nil
 }
 
 func (s *State) Close() {
 	s.dbFile.Close()
+}
+
+type Snapshot [32]byte
+
+func (s *State) doSnapshot() error {
+	_, err := s.dbFile.Seek(0, 0)
+	if err != nil {
+		return err
+	}
+	txsData, err := ioutil.ReadAll(s.dbFile)
+	if err != nil {
+		return err
+	}
+
+	s.snapshot = sha256.Sum256(txsData)
+
+	return nil
+}
+
+func (s *State) LastSnapshot() [32]byte {
+	return s.snapshot
 }

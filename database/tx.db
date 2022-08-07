@@ -3,3 +3,9 @@
 {"from":"roodic","to":"babayaga","value":2000,"data":""}
 {"from":"roodic","to":"roodic","value":100,"data":"reward"}
 {"from":"babayaga","to":"roodic","value":1,"data":""}
+{"from":"babayaga","to":"caesar","value":1000,"data":""}
+{"from":"babayaga","to":"roodic","value":50,"data":""}
+{"from":"roodic","to":"roodic","value":100,"data":"reward"}
+{"from":"roodic","to":"roodic","value":100,"data":"reward"}
+{"from":"roodic","to":"roodic","value":100,"data":"reward"}
+{"from":"roodic","to":"roodic","value":100,"data":"reward"}
