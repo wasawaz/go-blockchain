@@ -10,12 +10,14 @@ import (
 	"path/filepath"
 )
 
+type Hash [32]byte
+
 //The State struct will know about all user balances and who trans- ferred TBB tokens to whom, and how many were transferred.
 type State struct {
 	Balances  map[Account]uint
 	txMempool []Tx
 	dbFile    *os.File
-	snapshot  Snapshot
+	snapshot  Hash
 }
 
 func NewStateFromDisk() (*State, error) {
@@ -42,7 +44,7 @@ func NewStateFromDisk() (*State, error) {
 		return nil, err
 	}
 	scanner := bufio.NewScanner(f)
-	state := &State{balances, make([]Tx, 0), f, Snapshot{}}
+	state := &State{balances, make([]Tx, 0), f, Hash{}}
 
 	for scanner.Scan() {
 		if err := scanner.Err(); err != nil {
@@ -90,7 +92,7 @@ func (s *State) Add(tx Tx) error {
 }
 
 //Persisting the transactions to disk
-func (s *State) Persist() (Snapshot, error) {
+func (s *State) Persist() (Hash, error) {
 	// Make a copy of mempool because the s.txMempool will be modified
 	// in the loop below
 	mempool := make([]Tx, len(s.txMempool))
@@ -98,16 +100,16 @@ func (s *State) Persist() (Snapshot, error) {
 	for i := 0; i < len(mempool); i++ {
 		txJson, err := json.Marshal(mempool[i])
 		if err != nil {
-			return Snapshot{}, err
+			return Hash{}, err
 		}
 		fmt.Printf("Persisting new TX to disk:\n")
 		fmt.Printf("\t%s\n", txJson)
 		if _, err = s.dbFile.Write(append(txJson, '\n')); err != nil {
-			return Snapshot{}, err
+			return Hash{}, err
 		}
 		err = s.doSnapshot()
 		if err != nil {
-			return Snapshot{}, err
+			return Hash{}, err
 		}
 		fmt.Printf("NewDB Snapshot: %x\n", s.snapshot)
 
@@ -119,8 +121,6 @@ func (s *State) Persist() (Snapshot, error) {
 func (s *State) Close() {
 	s.dbFile.Close()
 }
-
-type Snapshot [32]byte
 
 func (s *State) doSnapshot() error {
 	_, err := s.dbFile.Seek(0, 0)
