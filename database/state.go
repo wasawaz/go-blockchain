@@ -82,8 +82,17 @@ func (s *State) apply(tx Tx) error {
 	return nil
 }
 
+func (s *State) AddBlock(b Block) error {
+	for _, tx := range b.TXs {
+		if err := s.AddTx(tx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 //Adding new transactions to Mempool
-func (s *State) Add(tx Tx) error {
+func (s *State) AddTx(tx Tx) error {
 	if err := s.apply(tx); err != nil {
 		return err
 	}
