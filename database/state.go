@@ -8,16 +8,16 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"time"
 )
-
-type Hash [32]byte
 
 //The State struct will know about all user balances and who trans- ferred TBB tokens to whom, and how many were transferred.
 type State struct {
-	Balances  map[Account]uint
-	txMempool []Tx
-	dbFile    *os.File
-	snapshot  Hash
+	Balances        map[Account]uint
+	txMempool       []Tx
+	dbFile          *os.File
+	snapshot        Hash
+	latestBlockHash Hash
 }
 
 func NewStateFromDisk() (*State, error) {
@@ -38,13 +38,13 @@ func NewStateFromDisk() (*State, error) {
 		balances[account] = balance
 	}
 
-	txDbFilePath := filepath.Join(cwd, "database", "tx.db")
+	txDbFilePath := filepath.Join(cwd, "database", "block.db")
 	f, err := os.OpenFile(txDbFilePath, os.O_APPEND|os.O_RDWR, 0600)
 	if err != nil {
 		return nil, err
 	}
 	scanner := bufio.NewScanner(f)
-	state := &State{balances, make([]Tx, 0), f, Hash{}}
+	state := &State{balances, make([]Tx, 0), f, Hash{}, Hash{}}
 
 	for scanner.Scan() {
 		if err := scanner.Err(); err != nil {
@@ -93,29 +93,32 @@ func (s *State) Add(tx Tx) error {
 
 //Persisting the transactions to disk
 func (s *State) Persist() (Hash, error) {
-	// Make a copy of mempool because the s.txMempool will be modified
-	// in the loop below
-	mempool := make([]Tx, len(s.txMempool))
-	copy(mempool, s.txMempool)
-	for i := 0; i < len(mempool); i++ {
-		txJson, err := json.Marshal(mempool[i])
-		if err != nil {
-			return Hash{}, err
-		}
-		fmt.Printf("Persisting new TX to disk:\n")
-		fmt.Printf("\t%s\n", txJson)
-		if _, err = s.dbFile.Write(append(txJson, '\n')); err != nil {
-			return Hash{}, err
-		}
-		err = s.doSnapshot()
-		if err != nil {
-			return Hash{}, err
-		}
-		fmt.Printf("NewDB Snapshot: %x\n", s.snapshot)
 
-		s.txMempool = s.txMempool[1:]
+	block := NewBlock(s.latestBlockHash, uint64(time.Now().Unix()), s.txMempool)
+	blockHash, err := block.Hash()
+	if err != nil {
+		return Hash{}, err
 	}
-	return s.snapshot, nil
+
+	blockFs := BlockFs{blockHash, block}
+	blockFsJson, err := json.Marshal(blockFs)
+	if err != nil {
+		return Hash{}, err
+	}
+
+	fmt.Printf("Persisting new Block to disk:\n")
+	fmt.Printf("\t%s\n", blockFsJson)
+
+	_, err = s.dbFile.Write(append(blockFsJson, '\n'))
+	if err != nil {
+		return Hash{}, err
+	}
+
+	s.latestBlockHash = blockHash
+
+	s.txMempool = []Tx{}
+
+	return s.latestBlockHash, nil
 }
 
 func (s *State) Close() {
